@@ -17,12 +17,11 @@ class KnowledgeBaseParser:
 
   @staticmethod
   def clean_line(line: str) -> str:
-    """Удаление пробелов и символов переноса строки."""
     return re.sub(r'\s+', '', line)
 
   @classmethod
   def parse_fuzzy_set(cls, line: str) -> FuzzySet:
-    """Разбор строки факта вида: Name={<x1,0.0>,<x2,0.1>}"""
+    """Разбор строки факта"""
     line = cls.clean_line(line)
     match = re.match(r'^([A-Za-z0-9_]+)=\{([^}]+)\}$', line)
     if not match:
@@ -50,7 +49,7 @@ class KnowledgeBaseParser:
 
   @classmethod
   def parse_rule(cls, line: str) -> Rule:
-    """Разбор строки правила вида: A(x)~>B(y)"""
+    """Разбор строки правила вида"""
     line = cls.clean_line(line)
     pattern = re.compile(
         r'^([A-Za-z0-9_]+)\(([A-Za-z0-9_]+)\)~>([A-Za-z0-9_]+)\(([A-Za-z0-9_]+)\)$'
@@ -67,10 +66,8 @@ class KnowledgeBaseParser:
     )
 
   @classmethod
-  def parse_file(
-      cls, filepath: str
-  ) -> Tuple[Dict[str, FuzzySet], List[Rule]]:
-    """Парсинг всего файла базы знаний."""
+  def parse_file(cls, filepath: str) -> Tuple[Dict[str, FuzzySet], List[Rule]]:
+
     facts: Dict[str, FuzzySet] = {}
     rules: List[Rule] = []
 

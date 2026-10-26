@@ -14,7 +14,6 @@ from typing import Dict
 
 @dataclass
 class FuzzySet:
-  """Представление нечеткого множества: имя и словарь {элемент: степень принадлежности}."""
 
   name: str
   elements: Dict[str, float]
@@ -26,7 +25,6 @@ class FuzzySet:
 
 @dataclass
 class Rule:
-  """Представление правила вида A(x)~>B(y)."""
 
   antecedent_pred: str
   antecedent_var: str

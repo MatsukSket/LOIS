@@ -18,11 +18,25 @@ from parser import KnowledgeBaseParser
 def find_matching_fact_name(
     all_facts: Dict[str, FuzzySet], new_elements: Dict[str, float]
 ) -> str | None:
-  """Проверяет, совпадает ли полученный факт с уже существующим."""
   for name, fact in all_facts.items():
     if are_fuzzy_sets_equal(fact.elements, new_elements):
       return name
   return None
+
+
+def print_relation_matrix(
+    rule: Rule,
+    A: FuzzySet,
+    B: FuzzySet,
+    matrix: Dict[Tuple[str, str], float],
+) -> None:
+  print(f'\nМатрица импликации Вебера для правила {rule}:')
+  y_keys = list(B.elements.keys())
+  header = 'x \\ y\t' + '\t'.join(f'{y}({B.elements[y]})' for y in y_keys)
+  print(header)
+  for x, mu_a in A.elements.items():
+    row_vals = '\t'.join(f'{matrix[(x, y)]:.2f}' for y in y_keys)
+    print(f'{x}({mu_a})\t{row_vals}')
 
 
 def main():
@@ -38,25 +52,30 @@ def main():
 
   facts, rules = KnowledgeBaseParser.parse_file(filename)
   print(f'\nУспешно загружено фактов: {len(facts)}, правил: {len(rules)}')
+  print('Исходные факты:', ', '.join(str(f) for f in facts.values()))
+  print('Правила:', ', '.join(str(r) for r in rules))
 
-  # 1. Построение матриц нечетких отношений для каждого правила
+  # матрицы отношений для каждого правила
   relation_matrices: Dict[Tuple[str, str], Dict[Tuple[str, str], float]] = {}
   for rule in rules:
     if rule.antecedent_pred not in facts or rule.consequent_pred not in facts:
-      print(f'Предупреждение: для правила {rule} нет описания множеств в фактах.')
+      print(
+          f'Предупреждение: для правила {rule} нет описания множеств в фактах.'
+      )
       continue
 
-    matrix = build_relation_matrix(
-        facts[rule.antecedent_pred], facts[rule.consequent_pred]
-    )
+    ant_set = facts[rule.antecedent_pred]
+    cons_set = facts[rule.consequent_pred]
+    matrix = build_relation_matrix(ant_set, cons_set)
     relation_matrices[(rule.antecedent_pred, rule.consequent_pred)] = matrix
+    print_relation_matrix(rule, ant_set, cons_set, matrix)
 
   print('\n=== Начало прямого логического вывода ===\n')
 
   new_fact_counter = 1
   iteration = 1
 
-  # 2. Итерационный процесс насыщения фактов
+  # процесс насыщения фактов
   while True:
     print(f'--- Итерация {iteration} ---')
     added_in_this_step = 0
@@ -64,32 +83,39 @@ def main():
 
     for fact in current_facts_list:
       for rule in rules:
-        if (rule.antecedent_pred, rule.consequent_pred) not in relation_matrices:
+        if (
+            rule.antecedent_pred,
+            rule.consequent_pred,
+        ) not in relation_matrices:
           continue
 
-        # Проверка совместимости носителя: факт должен иметь ту же размерность
+        # проверка совместимости носителя
         template_ant = facts[rule.antecedent_pred]
         if set(fact.elements.keys()) != set(template_ant.elements.keys()):
           continue
 
         target_y_elements = list(facts[rule.consequent_pred].elements.keys())
-        matrix = relation_matrices[
-            (rule.antecedent_pred, rule.consequent_pred)
-        ]
+        matrix = relation_matrices[(rule.antecedent_pred, rule.consequent_pred)]
 
-        # Вычисление композиции
-        inferred_elements = fuzzy_compose(fact, matrix, target_y_elements)
+        # вычисление композиции с промежуточными деталями
+        inferred_elements, calc_details = fuzzy_compose(
+            fact, matrix, target_y_elements
+        )
         matched_name = find_matching_fact_name(facts, inferred_elements)
 
         elements_str = ','.join(
             f'<{k},{v}>' for k, v in inferred_elements.items()
         )
 
+        # печать промежуточного расчета
+        print(f'  [Расчет для {{{fact.name}, {rule}}}]:')
+        print('    ' + ' | '.join(calc_details))
+
         if matched_name is not None:
-          # Факт совпал с уже известным
-          print(f'{{{fact.name}, {rule}}} |- {{{elements_str}}}={matched_name}')
+          print(
+              f'  => {{{fact.name}, {rule}}} |- {{{elements_str}}}={matched_name}\n'
+          )
         else:
-          # Сгенерирован абсолютно новый факт
           new_fact_name = f'_{new_fact_counter}'
           new_fact_counter += 1
 
@@ -98,21 +124,23 @@ def main():
           added_in_this_step += 1
 
           print(
-              f'{{{fact.name}, {rule}}} |-'
-              f' {new_fact_name}={{{elements_str}}} [НОВЫЙ]'
+              f'  => {{{fact.name}, {rule}}} |-'
+              f' {new_fact_name}={{{elements_str}}} [НОВЫЙ]\n'
           )
 
     if added_in_this_step == 0:
       print(
-          '\nВывод завершен: новых фактов не найдено (база знаний'
+          'Вывод завершен: новых фактов не найдено (база знаний'
           ' стабилизировалась).'
       )
       break
 
     iteration += 1
-    user_choice = input(
-        '\nПродолжить вывод на следующей итерации? (y/n): '
-    ).strip().lower()
+    user_choice = (
+        input('Продолжить вывод на следующей итерации? (y/n): ')
+        .strip()
+        .lower()
+    )
     if user_choice == 'n':
       print('Вывод прерван пользователем.')
       break
