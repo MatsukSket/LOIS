@@ -40,7 +40,7 @@ solve(Matrix) :-
     ->
         print_matrix(Matrix)
     ;
-        writeln('There is no solution.')
+        writeln('There is no solution. пососи, нехер пихать ненужные файлы в репу')
     ).
 
 
