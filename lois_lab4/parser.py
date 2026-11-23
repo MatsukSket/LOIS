@@ -1,19 +1,13 @@
 """Лабораторная работа №4 по ЛОИС, вариант 4. БГУИР, группа 421703.
-Мацукевич Захар Александрович, Рассохов Егор Павлович, Полещук Ольга Владимировна.
+Мацукевич Захар Александрович
+Рассохов Егор Павлович
+Полещук Ольга Владимировна.
 Чтение таблиц правила и следствия.
 22.11.2026. Источник: условие лабораторной работы №4.
 """
 
 import re
-from dataclasses import dataclass
-from fractions import Fraction
 from pathlib import Path
-
-
-@dataclass
-class Table:
-    names: list[str]
-    rows: list[list[Fraction]]
 
 
 def read_table(block):
@@ -30,10 +24,10 @@ def read_table(block):
             raise ValueError("Число значений в строке не совпадает с числом элементов.")
         if not all(re.fullmatch(r"(?:0(?:\.[0-9]+)?|1(?:\.0+)?)", v) for v in values):
             raise ValueError("Степени принадлежности задаются числами от 0 до 1.")
-        rows.append([Fraction(v) for v in values])
+        rows.append([float(v) for v in values])
     if not rows:
         raise ValueError("В таблице отсутствуют значения.")
-    return Table(names, rows)
+    return names, rows
 
 
 def read_problem(path):
@@ -41,9 +35,11 @@ def read_problem(path):
     blocks = re.split(r"\n[ \t]*\n(?:[ \t]*\n)*", content)
     if len(blocks) != 3 or not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*", blocks[0]):
         raise ValueError("Нужны имя посылки и две таблицы, разделённые пустыми строками.")
-    first, second = map(read_table, blocks[1:])
-    orders = [(rule, result) for rule, result in ((first, second), (second, first))
-              if len(result.rows) == 1 and len(rule.rows) == len(result.names)]
-    if not orders:
-        raise ValueError("Размеры таблиц правила и следствия несовместимы.")
-    return blocks[0], orders
+    predicate, result_block, rule_block = blocks
+    y_names, y_rows = read_table(result_block)
+    if len(y_rows) != 1:
+        raise ValueError("Таблица y должна содержать одну строку значений.")
+    x_names, rule = read_table(rule_block)
+    if len(rule) != len(y_names):
+        raise ValueError("В таблице x должно быть по одной строке значений на каждый y.")
+    return predicate, x_names, rule, y_rows[0]

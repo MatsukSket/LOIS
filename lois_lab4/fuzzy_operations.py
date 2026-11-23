@@ -1,11 +1,15 @@
 """Лабораторная работа №4 по ЛОИС, вариант 4. БГУИР, группа 421703.
-Мацукевич Захар Александрович, Рассохов Егор Павлович, Полещук Ольга Владимировна.
+Мацукевич Захар Александрович
+Рассохов Егор Павлович
+Полещук Ольга Владимировна.
 Обратный вывод для ограниченной суммы конъюнкций Лукасевича.
 22.11.2026. Источник: условие лабораторной работы №4.
 """
 
-from fractions import Fraction
 from itertools import combinations, product
+
+PRECISION = 12
+EPSILON = 10 ** -PRECISION
 
 
 def intersection(equations, dimension):
@@ -13,19 +17,19 @@ def intersection(equations, dimension):
     matrix = [list(coeffs) + [rhs] for coeffs, rhs in equations]
     pivot = 0
     for col in range(dimension):
-        row = next((i for i in range(pivot, len(matrix)) if matrix[i][col]), None)
-        if row is None:
+        row = max(range(pivot, len(matrix)), key=lambda i: abs(matrix[i][col]), default=None)
+        if row is None or abs(matrix[row][col]) <= EPSILON:
             return None
         matrix[pivot], matrix[row] = matrix[row], matrix[pivot]
         divisor = matrix[pivot][col]
-        base = [Fraction(v) / divisor for v in matrix[pivot]]
+        base = [v / divisor for v in matrix[pivot]]
         matrix[pivot] = base
         for i, other in enumerate(matrix):
             if i != pivot and other[col]:
                 factor = other[col]
                 matrix[i] = [v - factor * b for v, b in zip(other, base)]
         pivot += 1
-    if any(row[-1] for row in matrix[pivot:]):
+    if any(abs(row[-1]) > EPSILON for row in matrix[pivot:]):
         return None
     return tuple(row[-1] for row in matrix[:pivot])
 
@@ -39,9 +43,9 @@ def vertices(bounds, rule, target):
         limits.append((unit, high))
 
     for row, value in zip(rule, target):
-        least = sum(max(0, low + r - 1) for (low, _), r in zip(bounds, row))
-        most = sum(max(0, high + r - 1) for (_, high), r in zip(bounds, row))
-        if not min(1, least) <= value <= min(1, most):
+        least = sum(max(0, low - (1 - r)) for (low, _), r in zip(bounds, row))
+        most = sum(max(0, high - (1 - r)) for (_, high), r in zip(bounds, row))
+        if not min(1, least) - EPSILON <= value <= min(1, most) + EPSILON:
             return frozenset()
         # На выбранной ячейке каждое слагаемое либо ноль, либо p_i + r_i - 1.
         active = tuple(int(low >= 1 - r) for (low, _), r in zip(bounds, row))
@@ -58,9 +62,11 @@ def vertices(bounds, rule, target):
         for faces in combinations(limits, count):
             point = intersection(equalities + list(faces), n)
             if point is not None and all(
-                sum(a * x for a, x in zip(coeffs, point)) <= rhs for coeffs, rhs in limits
+                sum(a * x for a, x in zip(coeffs, point)) <= rhs + EPSILON
+                for coeffs, rhs in limits
             ):
-                points.add(point)
+                # Общие вершины соседних ячеек должны совпадать в множестве.
+                points.add(tuple(round(max(0.0, min(1.0, x)), PRECISION) for x in point))
         # Все вершины требуют одного и того же числа независимых
         # дополнительных граней: размерность минус ранг равенств.
         if points:

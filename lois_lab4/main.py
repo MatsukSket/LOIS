@@ -1,5 +1,7 @@
 """Лабораторная работа №4 по ЛОИС, вариант 4. БГУИР, группа 421703.
-Мацукевич Захар Александрович, Рассохов Егор Павлович, Полещук Ольга Владимировна.
+Мацукевич Захар Александрович
+Рассохов Егор Павлович
+Полещук Ольга Владимировна.
 Запуск программы и вывод множества значений посылки.
 22.11.2026. Источник: условие лабораторной работы №4.
 """
@@ -12,18 +14,7 @@ from parser import read_problem
 
 
 def format_value(value):
-    denominator = value.denominator
-    for factor in (2, 5):
-        while denominator % factor == 0:
-            denominator //= factor
-    if denominator != 1:
-        return str(value)
-    integer, remainder = divmod(value.numerator, value.denominator)
-    digits = []
-    while remainder:
-        digit, remainder = divmod(remainder * 10, value.denominator)
-        digits.append(str(digit))
-    return f"{integer}." + "".join(digits) if digits else str(integer)
+    return str(int(value)) if value.is_integer() else str(value)
 
 
 def format_part(points):
@@ -45,20 +36,13 @@ def main():
         filename = input("Введите имя файла базы знаний [knowledge_base.txt]: ").strip()
         if not filename:
             filename = Path(__file__).with_name("knowledge_base.txt")
-        predicate, orders = read_problem(filename)
-        if len(orders) == 2:
-            choice = input("Обе таблицы однострочные. Какая содержит правило (1/2)? ").strip()
-            if choice not in ("1", "2"):
-                raise ValueError("Введите номер таблицы 1 или 2.")
-            rule, result = orders[int(choice) - 1]
-        else:
-            rule, result = orders[0]
-        parts = inverse_compose(rule.rows, result.rows[0])
+        predicate, x_names, rule, target = read_problem(filename)
+        parts = inverse_compose(rule, target)
     except (OSError, ValueError, EOFError) as error:
         print(f"Ошибка ввода: {error}")
         return 1
 
-    names = ",".join(f"{predicate}({name})" for name in rule.names)
+    names = ",".join(f"{predicate}({name})" for name in x_names)
     if parts:
         solution = "∪".join(map(format_part, parts))
         print(f"{solution} ∋ <{names}>")
